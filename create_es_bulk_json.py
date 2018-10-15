@@ -6,14 +6,17 @@ import sys
 
 
 # SSH into a remote server and find war files under certain directories
-def get_file_names(instance):
+# Returns a list of absolute paths and/or file names depending on the location
+# of files
+def get_file_paths(instance):
     path = f"*/{instance}/*/current/dist/*.war"
     command = [
         'ssh', '-l', xe_user, xe_host, 'find', banner_home,
         '-type l -wholename', path, '-exec readlink {} \;'
     ]
     ssh = subprocess.Popen(
-        command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        encoding='utf8'
     )
     result = ssh.stdout.readlines()
     # If we didn't get any files, something's wrong
@@ -26,12 +29,15 @@ def get_file_names(instance):
 
 # Parse the whole filename into the application name and version.
 def parse_file_names(instance):
-    file_names = get_file_names(instance)
+    file_paths = get_file_paths(instance)
+
+    # Strip absolute path so only the file name remains
+    file_names = list(map(lambda x: x.split("/")[-1], file_paths))
 
     for file in file_names:
-        app = file.split('-', 1)[0]
-        version = file.split('-', 1)[-1]
-        version = version.split('.war', 1)[0]
+        name_parts = file.split("-")
+        app = name_parts[0]
+        version = name_parts[1].split(".war")[0]
 
         version_dict = {"instance": instance, "version": version}
 
